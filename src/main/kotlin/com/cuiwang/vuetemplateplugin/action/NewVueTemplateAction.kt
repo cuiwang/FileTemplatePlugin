@@ -78,7 +78,7 @@ class NewVueTemplateAction : AnAction() {
                 return
             }
             val actualFileName = resolveFileNameWithSuffix(userFileName, template.suffix)
-            createFile(view, actualFileName, template.content)
+            createFile(project, view, actualFileName, template.content)
         }
     }
 
@@ -88,14 +88,27 @@ class NewVueTemplateAction : AnAction() {
         return if (templateSuffix.startsWith('.')) userName + templateSuffix else "${userName}.${templateSuffix}"
     }
 
-    private fun createFile(target: VirtualFile, fileName: String, content: String) {
+    private fun createFile(project: com.intellij.openapi.project.Project, target: VirtualFile, fileName: String, content: String) {
         val dir = if (target.isDirectory) target else target.parent
+        var created: VirtualFile? = null
         com.intellij.openapi.application.ApplicationManager.getApplication().runWriteAction {
             try {
                 val vf = dir.createChildData(this, fileName)
                 VfsUtil.saveText(vf, content)
+                created = vf
             } catch (ex: Exception) {
                 LOG.error("创建文件失败: $fileName", ex)
+            }
+        }
+        // 打开文件（在 EDT）
+        created?.let { vf ->
+            com.intellij.openapi.application.ApplicationManager.getApplication().invokeLater {
+                try {
+                    val fem = com.intellij.openapi.fileEditor.FileEditorManager.getInstance(project)
+                    fem.openFile(vf, true)
+                } catch (ex: Exception) {
+                    LOG.error("打开文件失败: ${'$'}fileName", ex)
+                }
             }
         }
     }

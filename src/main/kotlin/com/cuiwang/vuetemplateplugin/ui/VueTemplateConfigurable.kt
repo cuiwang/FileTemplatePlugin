@@ -15,6 +15,9 @@ import java.awt.Dimension
 import java.awt.event.FocusAdapter
 import java.awt.event.FocusEvent
 import javax.swing.table.DefaultTableCellRenderer
+import com.intellij.ide.BrowserUtil
+import com.intellij.ui.components.labels.LinkLabel
+import com.intellij.ui.JBColor
 
 class VueTemplateConfigurable : Configurable {
     private val LOG = Logger.getInstance(VueTemplateConfigurable::class.java)
@@ -36,34 +39,72 @@ class VueTemplateConfigurable : Configurable {
 
     init {
         table.setRowHeight(28)
-        table.columnModel.getColumn(3).preferredWidth = 400
+        // 优化列宽：模板名称 80，文件后缀 80，模板类型 80，模板内容 200，是否启用 60
+        table.columnModel.getColumn(0).preferredWidth = 80  // 模板名称
+        table.columnModel.getColumn(1).preferredWidth = 80  // 文件后缀
+        table.columnModel.getColumn(2).preferredWidth = 80  // 模板类型
+        table.columnModel.getColumn(3).preferredWidth = 200 // 模板内容（多行）
+        table.columnModel.getColumn(4).preferredWidth = 60  // 是否启用
         table.fillsViewportHeight = true
         table.autoCreateRowSorter = true
+        // 保持合适的自动调整行为，让列宽更贴合首选宽度
+        table.autoResizeMode = JTable.AUTO_RESIZE_SUBSEQUENT_COLUMNS
 
         // set cell editors with placeholders
         setCellEditors()
     }
 
     private fun setCellEditors() {
-        // 文本字段编辑器
+        // 文本字段编辑器（含编辑时占位符模拟）
         val textEditor = object : AbstractCellEditor(), TableCellEditor {
             private val tf = JBTextField()
+            private var placeholder = ""
+            private val placeholderColor = JBColor.GRAY
+            private val normalColor = tf.foreground
+
             override fun getTableCellEditorComponent(table: JTable?, value: Any?, isSelected: Boolean, row: Int, column: Int): java.awt.Component {
-                tf.text = value as? String ?: ""
-                // placeholder for each column
-                when (column) {
-                    0 -> tf.emptyText.text = "请输入模板名称"
-                    1 -> tf.emptyText.text = "例如: .vue 或 vue"
-                    2 -> tf.emptyText.text = "请选择模板类型"
-                    3 -> tf.emptyText.text = "请输入模板内容（支持多行）"
+                val v = value as? String ?: ""
+                placeholder = when (column) {
+                    0 -> "请输入模板名称"
+                    1 -> "例如: .vue 或 vue"
+                    2 -> "请输入模板类型"
+                    else -> ""
                 }
-                // save on focus lost
-                tf.addFocusListener(object : FocusAdapter() {
-                    override fun focusLost(e: FocusEvent?) {
-                        stopCellEditing()
-                        apply()
-                    }
-                })
+                tf.toolTipText = placeholder
+
+                if (v.isEmpty()) {
+                    tf.text = placeholder
+                    tf.foreground = placeholderColor
+                    // on focus gained clear placeholder
+                    tf.addFocusListener(object : FocusAdapter() {
+                        override fun focusGained(e: FocusEvent?) {
+                            if (tf.text == placeholder) {
+                                tf.text = ""
+                                tf.foreground = normalColor
+                            }
+                        }
+
+                        override fun focusLost(e: FocusEvent?) {
+                            if (tf.text.isEmpty()) {
+                                tf.text = placeholder
+                                tf.foreground = placeholderColor
+                            }
+                            stopCellEditing()
+                            apply()
+                        }
+                    })
+                } else {
+                    tf.text = v
+                    tf.foreground = normalColor
+                    // ensure focusLost still triggers apply
+                    tf.addFocusListener(object : FocusAdapter() {
+                        override fun focusLost(e: FocusEvent?) {
+                            stopCellEditing()
+                            apply()
+                        }
+                    })
+                }
+
                 // save on Enter
                 tf.addActionListener {
                     stopCellEditing()
@@ -73,7 +114,8 @@ class VueTemplateConfigurable : Configurable {
             }
 
             override fun getCellEditorValue(): Any {
-                return tf.text
+                val text = tf.text
+                return if (text == placeholder) "" else text
             }
         }
 
@@ -86,18 +128,42 @@ class VueTemplateConfigurable : Configurable {
                 ta.lineWrap = true
                 ta.wrapStyleWord = true
                 ta.font = JBTextField().font
-                scroll.preferredSize = Dimension(600, 120)
+                // 缩小多行编辑器的宽度为 200，避免占用过多横向空间
+                scroll.preferredSize = Dimension(200, 120)
             }
 
             override fun getTableCellEditorComponent(table: JTable?, value: Any?, isSelected: Boolean, row: Int, column: Int): java.awt.Component {
-                ta.text = value as? String ?: ""
-                // 保存时在焦点丢失时触发
-                ta.addFocusListener(object : FocusAdapter() {
-                    override fun focusLost(e: FocusEvent?) {
-                        stopCellEditing()
-                        apply()
-                    }
-                })
+                val v = value as? String ?: ""
+                if (v.isEmpty()) {
+                    ta.text = "请输入模板内容（支持多行）"
+                    ta.foreground = JBColor.GRAY
+                    ta.addFocusListener(object : FocusAdapter() {
+                        override fun focusGained(e: FocusEvent?) {
+                            if (ta.text == "请输入模板内容（支持多行）") {
+                                ta.text = ""
+                                ta.foreground = JBColor.BLACK
+                            }
+                        }
+
+                        override fun focusLost(e: FocusEvent?) {
+                            if (ta.text.isEmpty()) {
+                                ta.text = "请输入模板内容（支持多行）"
+                                ta.foreground = JBColor.GRAY
+                            }
+                            stopCellEditing()
+                            apply()
+                        }
+                    })
+                } else {
+                    ta.text = v
+                    ta.foreground = JBColor.BLACK
+                    ta.addFocusListener(object : FocusAdapter() {
+                        override fun focusLost(e: FocusEvent?) {
+                            stopCellEditing()
+                            apply()
+                        }
+                    })
+                }
                 return scroll
             }
 
@@ -108,8 +174,15 @@ class VueTemplateConfigurable : Configurable {
 
         // 多行渲染器，显示带换行的文本
         val multiLineRenderer = object : DefaultTableCellRenderer() {
-            override fun getTableCellRendererComponent(table: JTable?, value: Any?, isSelected: Boolean, hasFocus: Boolean, row: Int, column: Int): java.awt.Component? {
-                val ta = JTextArea((value as? String) ?: "")
+            override fun getTableCellRendererComponent(table: JTable?, value: Any?, isSelected: Boolean, hasFocus: Boolean, row: Int, column: Int): java.awt.Component {
+                val ta = JTextArea()
+                val textVal = (value as? String)
+                if (textVal.isNullOrEmpty()) {
+                    ta.text = "请输入模板内容（支持多行）"
+                    ta.foreground = JBColor.GRAY
+                } else {
+                    ta.text = textVal
+                }
                 ta.lineWrap = true
                 ta.wrapStyleWord = true
                 ta.isOpaque = true
@@ -128,6 +201,33 @@ class VueTemplateConfigurable : Configurable {
         // column 3 = template content uses multi-line editor and renderer
         setEditorForColumn(3, multiLineEditor)
         table.columnModel.getColumn(3).cellRenderer = multiLineRenderer
+
+        // 为文本列（0..3）设置一个占位符渲染器，使得当单元格为空且未处于编辑时显示占位提示
+        val placeholders = mapOf(
+            0 to "请输入模板名称",
+            1 to "例如: .vue 或 vue",
+            2 to "请输入模板类型",
+            3 to "请输入模板内容（支持多行）"
+        )
+        val placeholderRenderer = object : DefaultTableCellRenderer() {
+            override fun getTableCellRendererComponent(table: JTable?, value: Any?, isSelected: Boolean, hasFocus: Boolean, row: Int, column: Int): java.awt.Component {
+                val comp = super.getTableCellRendererComponent(table, value, isSelected, hasFocus, row, column)
+                if (comp is JLabel) {
+                    val text = (value as? String)?.takeIf { it.isNotEmpty() }
+                    if (text == null) {
+                        comp.text = placeholders[column] ?: ""
+                        if (!isSelected) comp.foreground = JBColor.GRAY
+                    } else {
+                        comp.text = text
+                    }
+                }
+                return comp
+            }
+        }
+        // 只为单行文本列（0..2）设置占位符渲染器，避免覆盖多行渲染器（col 3）
+        for (col in 0..2) {
+            table.columnModel.getColumn(col).cellRenderer = placeholderRenderer
+        }
     }
 
     private fun setEditorForColumn(col: Int, editor: TableCellEditor) {
@@ -142,7 +242,16 @@ class VueTemplateConfigurable : Configurable {
 
                 val top = JPanel(BorderLayout())
                 val hint = JLabel("在此配置模版。详情请查看 ")
-                val link = JLabel("<html><a href=\"https://example.com\">示例文档</a></html>")
+                val url = "https://github.com/cuiwang/FileTemplatePlugin"
+                val link = LinkLabel<String>("Example docs", null)
+                link.setListener({ _, _ ->
+                    try {
+                        BrowserUtil.browse(url)
+                    } catch (ex: Exception) {
+                        LOG.error("打开链接失败: $url", ex)
+                    }
+                }, null)
+                link.setToolTipText(url)
                 val hintPanel = JPanel()
                 hintPanel.add(hint)
                 hintPanel.add(link)

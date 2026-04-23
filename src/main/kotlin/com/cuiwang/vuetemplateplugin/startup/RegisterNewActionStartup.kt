@@ -15,9 +15,20 @@ class RegisterNewActionStartup : ProjectActivity {
         ApplicationManager.getApplication().invokeLater {
             try {
                 val am = ActionManager.getInstance()
-                val action = am.getAction("FileTemplate.NewAction")
+                var action = am.getAction("FileTemplate.NewAction")
                 val group = am.getAction("NewGroup") as? DefaultActionGroup
                 LOG.info("RegisterNewActionStartup: action present=${action != null}, group present=${group != null}")
+                if (action == null) {
+                    // Register a new instance of our action if it's not present
+                    try {
+                        val newAction = com.cuiwang.vuetemplateplugin.action.NewVueTemplateAction()
+                        am.registerAction("FileTemplate.NewAction", newAction)
+                        action = newAction
+                        LOG.info("RegisterNewActionStartup: registered FileTemplate.NewAction dynamically")
+                    } catch (re: Exception) {
+                        LOG.error("RegisterNewActionStartup: failed to register action dynamically", re)
+                    }
+                }
                 if (action != null && group != null) {
                     val children = group.getChildActionsOrStubs()
                     val exists = children.any { child -> am.getId(child) == "FileTemplate.NewAction" }

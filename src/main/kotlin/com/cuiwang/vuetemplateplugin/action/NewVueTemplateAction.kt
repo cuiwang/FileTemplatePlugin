@@ -19,14 +19,41 @@ import java.awt.BorderLayout
 import java.awt.FlowLayout
 
 /**
- * Action that adds a "FileTemplate" entry to the New menu and shows a dialog to create a file from a selected template.
+ * Action that adds a "File Template" entry to the New menu and shows a dialog to create a file from a selected template.
  */
 class NewVueTemplateAction : AnAction() {
     private val LOG = Logger.getInstance(NewVueTemplateAction::class.java)
 
     init {
-        // Set presentation text (avoid constructor-based presentation warning)
-        templatePresentation.text = "FileTemplate"
+        // Set presentation text and icon
+        templatePresentation.text = "File Template"
+        try {
+            val icon = IconLoader.getIcon("/META-INF/pluginIcon.svg", javaClass)
+            templatePresentation.icon = icon
+        } catch (_: Exception) {
+        }
+
+        // Ensure the action is added to NewGroup at runtime (safe on EDT)
+        com.intellij.openapi.application.ApplicationManager.getApplication().invokeLater {
+            try {
+                val am = com.intellij.openapi.actionSystem.ActionManager.getInstance()
+                val action = am.getAction("FileTemplate.NewAction")
+                val group = am.getAction("NewGroup") as? com.intellij.openapi.actionSystem.DefaultActionGroup
+                if (action != null && group != null) {
+                    val exists = group.getChildActionsOrStubs().any { child -> am.getId(child) == "FileTemplate.NewAction" }
+                    if (!exists) {
+                        group.add(action)
+                        LOG.info("NewVueTemplateAction: added File Template action to NewGroup at runtime")
+                    } else {
+                        LOG.info("NewVueTemplateAction: File Template already present in NewGroup")
+                    }
+                } else {
+                    LOG.info("NewVueTemplateAction: action or NewGroup not available yet: action=${action!=null}, group=${group!=null}")
+                }
+            } catch (ex: Exception) {
+                LOG.error("NewVueTemplateAction: failed to add action to NewGroup", ex)
+            }
+        }
     }
 
     override fun getActionUpdateThread(): ActionUpdateThread = ActionUpdateThread.BGT
@@ -51,14 +78,12 @@ class NewVueTemplateAction : AnAction() {
                 Messages.showErrorDialog(project, "请输入文件名。", "错误")
                 return
             }
-            // 创建文件，考虑模板后缀：如果用户输入的文件名已经包含扩展名，则使用用户输入；否则使用模板的 suffix
             val actualFileName = resolveFileNameWithSuffix(userFileName, template.suffix)
             createFile(view, actualFileName, template.content)
         }
     }
 
     private fun resolveFileNameWithSuffix(userName: String, templateSuffix: String): String {
-        // 如果用户已经包含扩展名（包含 '.' 且不以 '.' 结尾），则使用用户输入
         if (userName.contains('.') && !userName.endsWith('.')) return userName
         if (templateSuffix.isBlank()) return userName
         return if (templateSuffix.startsWith('.')) userName + templateSuffix else "${userName}.${templateSuffix}"
@@ -87,7 +112,7 @@ class NewVueTemplateAction : AnAction() {
 
         init {
             init()
-            title = "Create File from Template"
+            title = "Create File Template"
             loadTypes()
             typeCombo.addActionListener { updateTemplateList() }
         }

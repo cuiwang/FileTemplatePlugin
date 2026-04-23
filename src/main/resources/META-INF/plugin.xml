@@ -5,7 +5,7 @@
 
     <!-- Public plugin name should be written in Title Case.
          Guidelines: https://plugins.jetbrains.com/docs/marketplace/best-practices-for-listing.html#plugin-name -->
-    <name>FileTemplate-Plugin</name>
+    <name>File Template-Plugin</name>
 
     <!-- A displayed Vendor name or Organization ID displayed on the Plugins Page. -->
     <vendor url="https://www.yourcompany.com">YourCompany</vendor>
@@ -13,7 +13,7 @@
     <!-- Description of the plugin displayed on the Plugin Page and IDE Plugin Manager.
          Guidelines: https://plugins.jetbrains.com/docs/marketplace/best-practices-for-listing.html#plugin-description -->
     <description><![CDATA[
-        FileTemplate plugin for quickly creating files from templates.
+        File Template plugin for quickly creating files from templates.
     ]]></description>
 
     <!-- Product and plugin compatibility requirements.
@@ -22,12 +22,15 @@
 
     <extensions defaultExtensionNs="com.intellij">
         <projectActivity implementation="com.cuiwang.vuetemplateplugin.startup.RegisterNewActionStartup" />
-        <applicationConfigurable id="com.cuiwang.FileTemplateConfigurable" implementation="com.cuiwang.vuetemplateplugin.ui.VueTemplateConfigurable" displayName="FileTemplate" />
+        <postStartupActivity implementation="com.cuiwang.vuetemplateplugin.startup.RegisterNewActionPostStartup" />
+        <applicationConfigurable id="com.cuiwang.FileTemplateConfigurable" implementation="com.cuiwang.vuetemplateplugin.ui.VueTemplateConfigurable" displayName="File Template" />
     </extensions>
 
     <!-- Actions: define the New action; placement will be performed at runtime by startup activity -->
     <actions>
-        <action id="FileTemplate.NewAction" class="com.cuiwang.vuetemplateplugin.action.NewVueTemplateAction" text="FileTemplate"/>
+        <action id="FileTemplate.NewAction" class="com.cuiwang.vuetemplateplugin.action.NewVueTemplateAction" text="File Template" icon="/META-INF/pluginIcon.svg">
+            <add-to-group group-id="NewGroup" anchor="last" />
+        </action>
     </actions>
 
 </idea-plugin>

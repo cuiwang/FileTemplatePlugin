@@ -3,10 +3,17 @@ package com.cuiwang.vuetemplateplugin.ui
 import com.cuiwang.vuetemplateplugin.model.VueTemplateSettings
 import com.intellij.openapi.options.Configurable
 import com.intellij.openapi.diagnostic.Logger
+import com.intellij.ui.components.JBTextField
+import com.intellij.util.ui.UIUtil
 import javax.swing.*
 import javax.swing.table.DefaultTableModel
+import javax.swing.table.TableCellEditor
+import javax.swing.table.TableColumn
 import java.awt.BorderLayout
 import java.awt.Dimension
+import java.awt.event.ActionEvent
+import java.awt.event.FocusAdapter
+import java.awt.event.FocusEvent
 
 class VueTemplateConfigurable : Configurable {
     private val LOG = Logger.getInstance(VueTemplateConfigurable::class.java)
@@ -19,13 +26,66 @@ class VueTemplateConfigurable : Configurable {
                 else -> String::class.java
             }
         }
+
+        override fun isCellEditable(row: Int, column: Int): Boolean {
+            return true
+        }
     }
     private val table = JTable(tableModel)
 
     init {
-        table.setRowHeight(24)
-        // 更宽的模板内容列
+        table.setRowHeight(28)
         table.columnModel.getColumn(3).preferredWidth = 400
+        table.fillsViewportHeight = true
+        table.autoCreateRowSorter = true
+
+        // set cell editors with placeholders
+        setCellEditors()
+    }
+
+    private fun setCellEditors() {
+        // 文本字段编辑器
+        val textEditor = object : AbstractCellEditor(), TableCellEditor {
+            private val tf = JBTextField()
+            override fun getTableCellEditorComponent(table: JTable?, value: Any?, isSelected: Boolean, row: Int, column: Int): java.awt.Component {
+                tf.text = value as? String ?: ""
+                // placeholder for each column
+                when (column) {
+                    0 -> tf.emptyText.text = "请输入模板名称"
+                    1 -> tf.emptyText.text = "例如: .vue 或 vue"
+                    2 -> tf.emptyText.text = "请选择模板类型"
+                    3 -> tf.emptyText.text = "请输入模板内容（支持多行）"
+                }
+                // save on focus lost
+                tf.addFocusListener(object : FocusAdapter() {
+                    override fun focusLost(e: FocusEvent?) {
+                        stopCellEditing()
+                        apply()
+                    }
+                })
+                // save on Enter
+                tf.addActionListener { e: ActionEvent? ->
+                    stopCellEditing()
+                    apply()
+                }
+                return tf
+            }
+
+            override fun getCellEditorValue(): Any {
+                return tf.text
+            }
+        }
+
+        // type column as text input (user can type new types)
+        setEditorForColumn(0, textEditor)
+        setEditorForColumn(1, textEditor)
+        setEditorForColumn(2, textEditor)
+        setEditorForColumn(3, textEditor)
+    }
+
+    private fun setEditorForColumn(col: Int, editor: TableCellEditor) {
+        val tc: TableColumn = table.columnModel.getColumn(col)
+        tc.cellEditor = editor
     }
 
     override fun createComponent(): JComponent? {
@@ -55,18 +115,19 @@ class VueTemplateConfigurable : Configurable {
                 mainPanel!!.add(top, BorderLayout.NORTH)
 
                 val scroll = JScrollPane(table)
-                scroll.preferredSize = Dimension(700, 300)
+                scroll.preferredSize = Dimension(900, 360)
                 mainPanel!!.add(scroll, BorderLayout.CENTER)
 
                 addBtn.addActionListener {
-                    // 新增一行，默认后缀为空，类型为 PAGE
-                    tableModel.addRow(arrayOf<Any>("", "", "PAGE", "", java.lang.Boolean.TRUE))
+                    // 新增一行，模板类型不设默认值，留空交由用户选择
+                    tableModel.addRow(arrayOf<Any>("", "", "", "", java.lang.Boolean.TRUE))
                 }
 
                 deleteBtn.addActionListener {
                     val sel = table.selectedRow
                     if (sel >= 0) {
                         tableModel.removeRow(sel)
+                        apply()
                     }
                 }
 
@@ -79,6 +140,7 @@ class VueTemplateConfigurable : Configurable {
                         tableModel.dataVector.set(sel, prev)
                         tableModel.fireTableDataChanged()
                         table.selectionModel.setSelectionInterval(sel - 1, sel - 1)
+                        apply()
                     }
                 }
 
@@ -91,6 +153,7 @@ class VueTemplateConfigurable : Configurable {
                         tableModel.dataVector.set(sel, next)
                         tableModel.fireTableDataChanged()
                         table.selectionModel.setSelectionInterval(sel + 1, sel + 1)
+                        apply()
                     }
                 }
 
@@ -110,7 +173,7 @@ class VueTemplateConfigurable : Configurable {
         for (i in 0 until tableModel.rowCount) {
             val name = tableModel.getValueAt(i, 0) as? String ?: ""
             val suffix = tableModel.getValueAt(i, 1) as? String ?: ""
-            val type = tableModel.getValueAt(i, 2) as? String ?: "PAGE"
+            val type = tableModel.getValueAt(i, 2) as? String ?: ""
             val content = tableModel.getValueAt(i, 3) as? String ?: ""
             val enabled = tableModel.getValueAt(i, 4) as? Boolean ?: true
             val t = stored[i]
@@ -125,7 +188,7 @@ class VueTemplateConfigurable : Configurable {
         for (i in 0 until tableModel.rowCount) {
             val name = tableModel.getValueAt(i, 0) as? String ?: ""
             val suffix = tableModel.getValueAt(i, 1) as? String ?: ""
-            val type = tableModel.getValueAt(i, 2) as? String ?: "PAGE"
+            val type = tableModel.getValueAt(i, 2) as? String ?: ""
             val content = tableModel.getValueAt(i, 3) as? String ?: ""
             val enabled = tableModel.getValueAt(i, 4) as? Boolean ?: true
             s.templates.add(VueTemplateSettings.Template(name, suffix, type, content, enabled))
@@ -141,6 +204,6 @@ class VueTemplateConfigurable : Configurable {
     }
 
     override fun getDisplayName(): String {
-        return "FileTemplate"
+        return "File Template"
     }
 }

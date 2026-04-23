@@ -28,8 +28,7 @@ class NewVueTemplateAction : AnAction() {
         // Set presentation text and icon
         templatePresentation.text = "File Template"
         try {
-            val icon = IconLoader.getIcon("/META-INF/pluginIcon.svg", javaClass)
-            templatePresentation.icon = icon
+            templatePresentation.icon = IconLoader.getIcon("/META-INF/pluginIcon.svg", javaClass)
         } catch (_: Exception) {
         }
 
@@ -67,15 +66,15 @@ class NewVueTemplateAction : AnAction() {
     override fun actionPerformed(e: AnActionEvent) {
         val project = e.project ?: return
         val view = e.getData(CommonDataKeys.VIRTUAL_FILE) ?: return
-        val dialog = CreateTemplateDialog(project, view)
+        val dialog = CreateTemplateDialog(project)
         if (dialog.showAndGet()) {
             val userFileName = dialog.fileNameField.text.trim()
             val template = dialog.getSelectedTemplate() ?: run {
-                Messages.showErrorDialog(project, "请先选择一个模板。", "错误")
+                Messages.showErrorDialog(project, "Please select a template.", "Error")
                 return
             }
             if (userFileName.isEmpty()) {
-                Messages.showErrorDialog(project, "请输入文件名。", "错误")
+                Messages.showErrorDialog(project, "Please enter a file name.", "Error")
                 return
             }
             val actualFileName = resolveFileNameWithSuffix(userFileName, template.suffix)
@@ -104,7 +103,7 @@ class NewVueTemplateAction : AnAction() {
     /**
      * Dialog that shows available template types and templates (types come from settings dynamically).
      */
-    class CreateTemplateDialog(project: com.intellij.openapi.project.Project, target: VirtualFile) : DialogWrapper(project) {
+    class CreateTemplateDialog(project: com.intellij.openapi.project.Project) : DialogWrapper(project) {
         // types and templates are loaded from settings
         val typeCombo = ComboBox<String>()
         val templateList = JBList<String>()
@@ -120,12 +119,8 @@ class NewVueTemplateAction : AnAction() {
         private fun loadTypes() {
             // 从设置中收集所有不同的 type 值
             val types = VueTemplateSettings.getInstance().state.templates.map { it.type }.distinct()
-            // 如果为空，提供一个默认类型
-            if (types.isEmpty()) {
-                typeCombo.addItem("PAGE")
-            } else {
-                types.forEach { typeCombo.addItem(it) }
-            }
+            // 如果 types 为空，不添加默认类型，保留为空以提示用户先在设置中添加模板类型
+            types.forEach { typeCombo.addItem(it) }
             updateTemplateList()
         }
 
@@ -136,9 +131,14 @@ class NewVueTemplateAction : AnAction() {
             val model = DefaultListModel<String>()
             names.forEach { model.addElement(it) }
             templateList.model = model
+            // 默认选中第一个模板（如果有），以减少用户操作
+            if (model.size() > 0) {
+                templateList.setSelectedIndex(0)
+                templateList.ensureIndexIsVisible(0)
+            }
         }
 
-        override fun createCenterPanel(): JComponent? {
+        override fun createCenterPanel(): JComponent {
             val p = JPanel(BorderLayout(8, 8))
             p.border = JBUI.Borders.empty(10)
 
@@ -146,8 +146,9 @@ class NewVueTemplateAction : AnAction() {
             val top = JPanel(FlowLayout(FlowLayout.LEFT))
             val iconLabel = JLabel()
             try {
-                val icon = IconLoader.getIcon("/META-INF/pluginIcon.svg", javaClass)
-                iconLabel.icon = icon
+                val ic = IconLoader.getIcon("/META-INF/pluginIcon.svg", javaClass)
+                iconLabel.icon = ic
+                iconLabel.preferredSize = java.awt.Dimension(16, 16)
             } catch (_: Exception) {
                 // ignore icon loading errors
             }

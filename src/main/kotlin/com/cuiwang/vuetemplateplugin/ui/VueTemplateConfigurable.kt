@@ -4,16 +4,17 @@ import com.cuiwang.vuetemplateplugin.model.VueTemplateSettings
 import com.intellij.openapi.options.Configurable
 import com.intellij.openapi.diagnostic.Logger
 import com.intellij.ui.components.JBTextField
-import com.intellij.util.ui.UIUtil
+import com.intellij.ui.components.JBScrollPane
+import com.intellij.ui.table.JBTable
 import javax.swing.*
 import javax.swing.table.DefaultTableModel
 import javax.swing.table.TableCellEditor
 import javax.swing.table.TableColumn
 import java.awt.BorderLayout
 import java.awt.Dimension
-import java.awt.event.ActionEvent
 import java.awt.event.FocusAdapter
 import java.awt.event.FocusEvent
+import javax.swing.table.DefaultTableCellRenderer
 
 class VueTemplateConfigurable : Configurable {
     private val LOG = Logger.getInstance(VueTemplateConfigurable::class.java)
@@ -31,7 +32,7 @@ class VueTemplateConfigurable : Configurable {
             return true
         }
     }
-    private val table = JTable(tableModel)
+    private val table = JBTable(tableModel)
 
     init {
         table.setRowHeight(28)
@@ -64,7 +65,7 @@ class VueTemplateConfigurable : Configurable {
                     }
                 })
                 // save on Enter
-                tf.addActionListener { e: ActionEvent? ->
+                tf.addActionListener {
                     stopCellEditing()
                     apply()
                 }
@@ -76,11 +77,57 @@ class VueTemplateConfigurable : Configurable {
             }
         }
 
+        // 多行编辑器（用于模板内容列），使用 JTextArea，保留换行符
+        val multiLineEditor = object : AbstractCellEditor(), TableCellEditor {
+            private val ta = JTextArea()
+            private val scroll = JBScrollPane(ta)
+
+            init {
+                ta.lineWrap = true
+                ta.wrapStyleWord = true
+                ta.font = JBTextField().font
+                scroll.preferredSize = Dimension(600, 120)
+            }
+
+            override fun getTableCellEditorComponent(table: JTable?, value: Any?, isSelected: Boolean, row: Int, column: Int): java.awt.Component {
+                ta.text = value as? String ?: ""
+                // 保存时在焦点丢失时触发
+                ta.addFocusListener(object : FocusAdapter() {
+                    override fun focusLost(e: FocusEvent?) {
+                        stopCellEditing()
+                        apply()
+                    }
+                })
+                return scroll
+            }
+
+            override fun getCellEditorValue(): Any {
+                return ta.text
+            }
+        }
+
+        // 多行渲染器，显示带换行的文本
+        val multiLineRenderer = object : DefaultTableCellRenderer() {
+            override fun getTableCellRendererComponent(table: JTable?, value: Any?, isSelected: Boolean, hasFocus: Boolean, row: Int, column: Int): java.awt.Component? {
+                val ta = JTextArea((value as? String) ?: "")
+                ta.lineWrap = true
+                ta.wrapStyleWord = true
+                ta.isOpaque = true
+                ta.background = if (isSelected && table != null) table.selectionBackground else UIManager.getColor("Table.background")
+                ta.font = table?.font ?: ta.font
+                // optional: set a preferred size to help visibility
+                ta.border = UIManager.getBorder("Table.cellBorder")
+                return ta
+            }
+        }
+
         // type column as text input (user can type new types)
         setEditorForColumn(0, textEditor)
         setEditorForColumn(1, textEditor)
         setEditorForColumn(2, textEditor)
-        setEditorForColumn(3, textEditor)
+        // column 3 = template content uses multi-line editor and renderer
+        setEditorForColumn(3, multiLineEditor)
+        table.columnModel.getColumn(3).cellRenderer = multiLineRenderer
     }
 
     private fun setEditorForColumn(col: Int, editor: TableCellEditor) {
@@ -114,7 +161,7 @@ class VueTemplateConfigurable : Configurable {
 
                 mainPanel!!.add(top, BorderLayout.NORTH)
 
-                val scroll = JScrollPane(table)
+                val scroll = JBScrollPane(table)
                 scroll.preferredSize = Dimension(900, 360)
                 mainPanel!!.add(scroll, BorderLayout.CENTER)
 

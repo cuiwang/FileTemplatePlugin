@@ -2,29 +2,30 @@ package com.cuiwang.vuetemplateplugin.startup
 
 import com.intellij.openapi.actionSystem.ActionManager
 import com.intellij.openapi.actionSystem.DefaultActionGroup
-import com.intellij.openapi.startup.StartupActivity
+import com.intellij.openapi.startup.ProjectActivity
 import com.intellij.openapi.project.Project
-import com.intellij.openapi.application.ApplicationManager
 import com.intellij.openapi.diagnostic.Logger
+import com.intellij.openapi.application.ApplicationManager
 
-class RegisterNewActionStartup : StartupActivity {
+class RegisterNewActionStartup : ProjectActivity {
     private val LOG = Logger.getInstance(RegisterNewActionStartup::class.java)
 
-    override fun runActivity(project: Project) {
+    override suspend fun execute(project: Project) {
+        // Run registration on EDT after project opened
         ApplicationManager.getApplication().invokeLater {
             try {
                 val am = ActionManager.getInstance()
-                val action = am.getAction("VueTemplate.NewAction")
+                val action = am.getAction("FileTemplate.NewAction")
                 val group = am.getAction("NewGroup") as? DefaultActionGroup
-                LOG.info("RegisterNewActionStartup: action=${action != null}, group=${group != null}")
+                LOG.info("RegisterNewActionStartup: action present=${action != null}, group present=${group != null}")
                 if (action != null && group != null) {
                     val children = group.getChildActionsOrStubs()
-                    val exists = children.any { child -> am.getId(child) == "VueTemplate.NewAction" }
+                    val exists = children.any { child -> am.getId(child) == "FileTemplate.NewAction" }
                     if (!exists) {
                         group.add(action)
-                        LOG.info("RegisterNewActionStartup: added VueTemplate.NewAction to NewGroup")
+                        LOG.info("RegisterNewActionStartup: added FileTemplate.NewAction to NewGroup")
                     } else {
-                        LOG.info("RegisterNewActionStartup: VueTemplate.NewAction already present in NewGroup")
+                        LOG.info("RegisterNewActionStartup: FileTemplate.NewAction already exists in NewGroup")
                     }
                 }
             } catch (ex: Exception) {

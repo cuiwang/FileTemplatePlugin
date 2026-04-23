@@ -9,6 +9,7 @@ import com.intellij.util.xmlb.XmlSerializerUtil
 class VueTemplateSettings : PersistentStateComponent<VueTemplateSettings.State> {
     data class Template(
         var name: String = "",
+        var suffix: String = "", // 新增后缀字段（例如: .vue 或 vue）
         var type: String = "PAGE", // PAGE or COMPONENT
         var content: String = "",
         var enabled: Boolean = true

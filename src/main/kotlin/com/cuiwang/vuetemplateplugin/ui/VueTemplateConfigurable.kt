@@ -11,11 +11,11 @@ import java.awt.Dimension
 class VueTemplateConfigurable : Configurable {
     private val LOG = Logger.getInstance(VueTemplateConfigurable::class.java)
     private var mainPanel: JPanel? = null
-    private val columnNames = arrayOf("模板名称", "模板类型", "模板内容", "是否启用")
+    private val columnNames = arrayOf("模板名称", "文件后缀", "模板类型", "模板内容", "是否启用")
     private val tableModel = object : DefaultTableModel(columnNames, 0) {
         override fun getColumnClass(column: Int): Class<*> {
             return when (column) {
-                3 -> java.lang.Boolean::class.java
+                4 -> java.lang.Boolean::class.java
                 else -> String::class.java
             }
         }
@@ -24,7 +24,8 @@ class VueTemplateConfigurable : Configurable {
 
     init {
         table.setRowHeight(24)
-        table.columnModel.getColumn(2).preferredWidth = 400
+        // 更宽的模板内容列
+        table.columnModel.getColumn(3).preferredWidth = 400
     }
 
     override fun createComponent(): JComponent? {
@@ -42,12 +43,10 @@ class VueTemplateConfigurable : Configurable {
 
                 val ops = JPanel()
                 val addBtn = JButton("新增")
-                val uploadBtn = JButton("上传")
                 val deleteBtn = JButton("删除")
                 val upBtn = JButton("上移")
                 val downBtn = JButton("下移")
                 ops.add(addBtn)
-                ops.add(uploadBtn)
                 ops.add(deleteBtn)
                 ops.add(upBtn)
                 ops.add(downBtn)
@@ -60,11 +59,8 @@ class VueTemplateConfigurable : Configurable {
                 mainPanel!!.add(scroll, BorderLayout.CENTER)
 
                 addBtn.addActionListener {
-                    tableModel.addRow(arrayOf<Any>("", "PAGE", "", java.lang.Boolean.TRUE))
-                }
-
-                uploadBtn.addActionListener {
-                    // TODO: implement uploading file to import templates
+                    // 新增一行，默认后缀为空，类型为 PAGE
+                    tableModel.addRow(arrayOf<Any>("", "", "PAGE", "", java.lang.Boolean.TRUE))
                 }
 
                 deleteBtn.addActionListener {
@@ -113,11 +109,12 @@ class VueTemplateConfigurable : Configurable {
         if (stored.size != tableModel.rowCount) return true
         for (i in 0 until tableModel.rowCount) {
             val name = tableModel.getValueAt(i, 0) as? String ?: ""
-            val type = tableModel.getValueAt(i, 1) as? String ?: "PAGE"
-            val content = tableModel.getValueAt(i, 2) as? String ?: ""
-            val enabled = tableModel.getValueAt(i, 3) as? Boolean ?: true
+            val suffix = tableModel.getValueAt(i, 1) as? String ?: ""
+            val type = tableModel.getValueAt(i, 2) as? String ?: "PAGE"
+            val content = tableModel.getValueAt(i, 3) as? String ?: ""
+            val enabled = tableModel.getValueAt(i, 4) as? Boolean ?: true
             val t = stored[i]
-            if (t.name != name || t.type != type || t.content != content || t.enabled != enabled) return true
+            if (t.name != name || t.suffix != suffix || t.type != type || t.content != content || t.enabled != enabled) return true
         }
         return false
     }
@@ -127,10 +124,11 @@ class VueTemplateConfigurable : Configurable {
         s.templates.clear()
         for (i in 0 until tableModel.rowCount) {
             val name = tableModel.getValueAt(i, 0) as? String ?: ""
-            val type = tableModel.getValueAt(i, 1) as? String ?: "PAGE"
-            val content = tableModel.getValueAt(i, 2) as? String ?: ""
-            val enabled = tableModel.getValueAt(i, 3) as? Boolean ?: true
-            s.templates.add(VueTemplateSettings.Template(name, type, content, enabled))
+            val suffix = tableModel.getValueAt(i, 1) as? String ?: ""
+            val type = tableModel.getValueAt(i, 2) as? String ?: "PAGE"
+            val content = tableModel.getValueAt(i, 3) as? String ?: ""
+            val enabled = tableModel.getValueAt(i, 4) as? Boolean ?: true
+            s.templates.add(VueTemplateSettings.Template(name, suffix, type, content, enabled))
         }
     }
 
@@ -138,11 +136,11 @@ class VueTemplateConfigurable : Configurable {
         tableModel.setRowCount(0)
         val stored = VueTemplateSettings.getInstance().state.templates
         for (t in stored) {
-            tableModel.addRow(arrayOf<Any>(t.name, t.type, t.content, java.lang.Boolean.valueOf(t.enabled)))
+            tableModel.addRow(arrayOf<Any>(t.name, t.suffix, t.type, t.content, java.lang.Boolean.valueOf(t.enabled)))
         }
     }
 
     override fun getDisplayName(): String {
-        return "VueTemplate"
+        return "FileTemplate"
     }
 }

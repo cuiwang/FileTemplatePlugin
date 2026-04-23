@@ -7,22 +7,32 @@ import com.intellij.openapi.actionSystem.AnActionEvent
 import com.intellij.openapi.actionSystem.CommonDataKeys
 import com.intellij.openapi.ui.DialogWrapper
 import com.intellij.openapi.ui.Messages
+import com.intellij.openapi.ui.ComboBox
+import com.intellij.openapi.util.IconLoader
 import com.intellij.openapi.vfs.VfsUtil
 import com.intellij.openapi.vfs.VirtualFile
 import com.intellij.openapi.diagnostic.Logger
-import java.awt.BorderLayout
+import com.intellij.ui.components.JBList
+import com.intellij.util.ui.JBUI
 import javax.swing.*
+import java.awt.BorderLayout
+import java.awt.FlowLayout
 
-class NewVueTemplateAction : AnAction("VueTemplate") {
+/**
+ * Action that adds a "FileTemplate" entry to the New menu and shows a dialog to create a file from a selected template.
+ */
+class NewVueTemplateAction : AnAction() {
     private val LOG = Logger.getInstance(NewVueTemplateAction::class.java)
 
-    override fun getActionUpdateThread(): ActionUpdateThread {
-        // Ensure update() runs on background thread so retrieving data keys is safe
-        return ActionUpdateThread.BGT
+    init {
+        // Set presentation text (avoid constructor-based presentation warning)
+        templatePresentation.text = "FileTemplate"
     }
 
+    override fun getActionUpdateThread(): ActionUpdateThread = ActionUpdateThread.BGT
+
     override fun update(e: AnActionEvent) {
-        // This runs on background thread now
+        // Only enable/visible when a directory is selected in Project view
         val vf = e.getData(CommonDataKeys.VIRTUAL_FILE)
         e.presentation.isEnabledAndVisible = vf != null && vf.isDirectory
     }
@@ -30,20 +40,28 @@ class NewVueTemplateAction : AnAction("VueTemplate") {
     override fun actionPerformed(e: AnActionEvent) {
         val project = e.project ?: return
         val view = e.getData(CommonDataKeys.VIRTUAL_FILE) ?: return
-        LOG.info("NewVueTemplateAction invoked for: ${view.path}")
         val dialog = CreateTemplateDialog(project, view)
         if (dialog.showAndGet()) {
-            val fileName = dialog.fileNameField.text.trim()
+            val userFileName = dialog.fileNameField.text.trim()
             val template = dialog.getSelectedTemplate() ?: run {
-                Messages.showErrorDialog(project, "请先选择一个模板", "错误")
+                Messages.showErrorDialog(project, "请先选择一个模板。", "错误")
                 return
             }
-            if (fileName.isEmpty()) {
-                Messages.showErrorDialog(project, "请输入文件名", "错误")
+            if (userFileName.isEmpty()) {
+                Messages.showErrorDialog(project, "请输入文件名。", "错误")
                 return
             }
-            createFile(view, fileName, template.content)
+            // 创建文件，考虑模板后缀：如果用户输入的文件名已经包含扩展名，则使用用户输入；否则使用模板的 suffix
+            val actualFileName = resolveFileNameWithSuffix(userFileName, template.suffix)
+            createFile(view, actualFileName, template.content)
         }
+    }
+
+    private fun resolveFileNameWithSuffix(userName: String, templateSuffix: String): String {
+        // 如果用户已经包含扩展名（包含 '.' 且不以 '.' 结尾），则使用用户输入
+        if (userName.contains('.') && !userName.endsWith('.')) return userName
+        if (templateSuffix.isBlank()) return userName
+        return if (templateSuffix.startsWith('.')) userName + templateSuffix else "${userName}.${templateSuffix}"
     }
 
     private fun createFile(target: VirtualFile, fileName: String, content: String) {
@@ -53,35 +71,62 @@ class NewVueTemplateAction : AnAction("VueTemplate") {
                 val vf = dir.createChildData(this, fileName)
                 VfsUtil.saveText(vf, content)
             } catch (ex: Exception) {
-                ex.printStackTrace()
+                LOG.error("创建文件失败: $fileName", ex)
             }
         }
     }
 
-    class CreateTemplateDialog(val project: com.intellij.openapi.project.Project, val target: VirtualFile) : DialogWrapper(project) {
-        val typeCombo = JComboBox(arrayOf("PAGE", "COMPONENT"))
-        val templateList = JList<String>()
+    /**
+     * Dialog that shows available template types and templates (types come from settings dynamically).
+     */
+    class CreateTemplateDialog(project: com.intellij.openapi.project.Project, target: VirtualFile) : DialogWrapper(project) {
+        // types and templates are loaded from settings
+        val typeCombo = ComboBox<String>()
+        val templateList = JBList<String>()
         val fileNameField = JTextField(30)
 
         init {
             init()
-            title = "Create Vue Template"
-            updateTemplateList()
-            typeCombo.addActionListener {
-                updateTemplateList()
+            title = "Create File from Template"
+            loadTypes()
+            typeCombo.addActionListener { updateTemplateList() }
+        }
+
+        private fun loadTypes() {
+            // 从设置中收集所有不同的 type 值
+            val types = VueTemplateSettings.getInstance().state.templates.map { it.type }.distinct()
+            // 如果为空，提供一个默认类型
+            if (types.isEmpty()) {
+                typeCombo.addItem("PAGE")
+            } else {
+                types.forEach { typeCombo.addItem(it) }
             }
+            updateTemplateList()
         }
 
         private fun updateTemplateList() {
-            val type = typeCombo.selectedItem as String
+            val type = (typeCombo.selectedItem as? String) ?: return
             val templates = VueTemplateSettings.getInstance().state.templates.filter { it.type == type && it.enabled }
             val names = templates.map { it.name }
-            templateList.model = DefaultListModel<String>().also { model -> names.forEach { model.addElement(it) } }
+            val model = DefaultListModel<String>()
+            names.forEach { model.addElement(it) }
+            templateList.model = model
         }
 
         override fun createCenterPanel(): JComponent? {
-            val p = JPanel(BorderLayout())
-            val top = JPanel()
+            val p = JPanel(BorderLayout(8, 8))
+            p.border = JBUI.Borders.empty(10)
+
+            // top: icon + type select
+            val top = JPanel(FlowLayout(FlowLayout.LEFT))
+            val iconLabel = JLabel()
+            try {
+                val icon = IconLoader.getIcon("/META-INF/pluginIcon.svg", javaClass)
+                iconLabel.icon = icon
+            } catch (_: Exception) {
+                // ignore icon loading errors
+            }
+            top.add(iconLabel)
             top.add(JLabel("类型:"))
             top.add(typeCombo)
             p.add(top, BorderLayout.NORTH)
@@ -90,7 +135,7 @@ class NewVueTemplateAction : AnAction("VueTemplate") {
             center.add(JScrollPane(templateList), BorderLayout.CENTER)
             p.add(center, BorderLayout.CENTER)
 
-            val bottom = JPanel()
+            val bottom = JPanel(FlowLayout(FlowLayout.LEFT))
             bottom.add(JLabel("文件名:"))
             bottom.add(fileNameField)
             p.add(bottom, BorderLayout.SOUTH)

@@ -27,17 +27,18 @@ import javax.swing.filechooser.FileNameExtensionFilter
 class VueTemplateConfigurable : Configurable {
     private val LOG = Logger.getInstance(VueTemplateConfigurable::class.java)
     private var mainPanel: JPanel? = null
-    private val columnNames = arrayOf("模板名称", "文件后缀", "模板类型", "模板内容", "是否启用")
+    private val columnNames = arrayOf("#", "模板名称", "文件后缀", "模板类型", "模板内容", "是否启用")
     private val tableModel = object : DefaultTableModel(columnNames, 0) {
         override fun getColumnClass(column: Int): Class<*> {
             return when (column) {
-                4 -> java.lang.Boolean::class.java
+                5 -> java.lang.Boolean::class.java
                 else -> String::class.java
             }
         }
 
         override fun isCellEditable(row: Int, column: Int): Boolean {
-            return true
+            // 序号列（0）不可编辑，其它列可编辑
+            return column != 0
         }
     }
     private val table = JBTable(tableModel)
@@ -46,12 +47,13 @@ class VueTemplateConfigurable : Configurable {
         // Increase font size for table and editors
         table.font = table.font.deriveFont(table.font.size.toFloat() + 2f)
         table.setRowHeight(30)
-        // 优化列宽：模板名称 80，文件后缀 80，模板类型 80，模板内容 200，是否启用 60
-        table.columnModel.getColumn(0).preferredWidth = 80  // 模板名称
-        table.columnModel.getColumn(1).preferredWidth = 80  // 文件后缀
-        table.columnModel.getColumn(2).preferredWidth = 80  // 模板类型
-        table.columnModel.getColumn(3).preferredWidth = 200 // 模板内容（多行）
-        table.columnModel.getColumn(4).preferredWidth = 60  // 是否启用
+        // 优化列宽：序号 40，模板名称 80，文件后缀 80，模板类型 80，模板内容 200，是否启用 60
+        table.columnModel.getColumn(0).preferredWidth = 40  // 序号
+        table.columnModel.getColumn(1).preferredWidth = 80  // 模板名称
+        table.columnModel.getColumn(2).preferredWidth = 80  // 文件后缀
+        table.columnModel.getColumn(3).preferredWidth = 80  // 模板类型
+        table.columnModel.getColumn(4).preferredWidth = 200 // 模板内容（多行）
+        table.columnModel.getColumn(5).preferredWidth = 60  // 是否启用
         table.fillsViewportHeight = true
         table.autoCreateRowSorter = true
         // 保持合适的自动调整行为，让列宽更贴合首选宽度
@@ -73,9 +75,9 @@ class VueTemplateConfigurable : Configurable {
             override fun getTableCellEditorComponent(table: JTable?, value: Any?, isSelected: Boolean, row: Int, column: Int): java.awt.Component {
                 val v = value as? String ?: ""
                 placeholder = when (column) {
-                    0 -> "请输入模板名称"
-                    1 -> "例如: .vue 或 vue"
-                    2 -> "请输入模板类型"
+                    1 -> "请输入模板名称"
+                    2 -> "例如: .vue 或 vue"
+                    3 -> "请输入模板类型"
                     else -> ""
                 }
                 tf.toolTipText = placeholder
@@ -180,7 +182,7 @@ class VueTemplateConfigurable : Configurable {
             }
         }
 
-        // 多行���染器，显示带换行的文本
+        // 多行渲染器，显示带换行的文本
         val multiLineRenderer = object : DefaultTableCellRenderer() {
             override fun getTableCellRendererComponent(table: JTable?, value: Any?, isSelected: Boolean, hasFocus: Boolean, row: Int, column: Int): java.awt.Component {
                 val ta = JTextArea()
@@ -203,19 +205,19 @@ class VueTemplateConfigurable : Configurable {
         }
 
         // type column as text input (user can type new types)
-        setEditorForColumn(0, textEditor)
         setEditorForColumn(1, textEditor)
         setEditorForColumn(2, textEditor)
-        // column 3 = template content uses multi-line editor and renderer
-        setEditorForColumn(3, multiLineEditor)
-        table.columnModel.getColumn(3).cellRenderer = multiLineRenderer
+        setEditorForColumn(3, textEditor)
+        // column 4 = template content uses multi-line editor and renderer
+        setEditorForColumn(4, multiLineEditor)
+        table.columnModel.getColumn(4).cellRenderer = multiLineRenderer
 
-        // 为文本列（0..3）设置一个占位符渲染器，使得当单元格为空且未处于编辑时显示占位提示
+        // 为文本列（1..3）设置一个占位符渲染器，使得当单元格为空且未处于编辑时显示占位提示
         val placeholders = mapOf(
-            0 to "请输入模板名称",
-            1 to "例如: .vue 或 vue",
-            2 to "请输入模板类型",
-            3 to "请输入模板内容（支持多行）"
+            1 to "请输入模板名称",
+            2 to "例如: .vue 或 vue",
+            3 to "请输入模板类型",
+            4 to "请输入模板内容（支持多行）"
         )
         val placeholderRenderer = object : DefaultTableCellRenderer() {
             override fun getTableCellRendererComponent(table: JTable?, value: Any?, isSelected: Boolean, hasFocus: Boolean, row: Int, column: Int): java.awt.Component {
@@ -232,9 +234,16 @@ class VueTemplateConfigurable : Configurable {
                 return comp
             }
         }
-        // 只为单行文本列（0..2）设置占位符渲染器，避免覆盖多行渲染器（col 3）
-        for (col in 0..2) {
+        // 只为单行文本列（1..3）设置占位符渲染器，避免覆盖多行渲染器（col 4）
+        for (col in 1..3) {
             table.columnModel.getColumn(col).cellRenderer = placeholderRenderer
+        }
+    }
+
+    // 更新第一列序号，使其从1开始并保持与行号一致
+    private fun updateSequenceNumbers() {
+        for (i in 0 until tableModel.rowCount) {
+            tableModel.setValueAt((i + 1).toString(), i, 0)
         }
     }
 
@@ -309,6 +318,7 @@ class VueTemplateConfigurable : Configurable {
                         val count = importFromJson()
                         if (count > 0) {
                             reset()
+                            updateSequenceNumbers()
                             // intentionally no success dialog to avoid noisy prompts
                         }
                         // if count == 0 -> user canceled or no items; do nothing
@@ -320,13 +330,15 @@ class VueTemplateConfigurable : Configurable {
 
                 addBtn.addActionListener {
                     // 新增一行，模板类型不设默认值，留空交由用户选择
-                    tableModel.addRow(arrayOf<Any>("", "", "", "", java.lang.Boolean.TRUE))
+                    tableModel.addRow(arrayOf<Any>("", "", "", "", "", java.lang.Boolean.TRUE))
+                    updateSequenceNumbers()
                 }
 
                 deleteBtn.addActionListener {
                     val sel = table.selectedRow
                     if (sel >= 0) {
                         tableModel.removeRow(sel)
+                        updateSequenceNumbers()
                         apply()
                     }
                 }
@@ -339,6 +351,7 @@ class VueTemplateConfigurable : Configurable {
                         tableModel.dataVector.set(sel - 1, row)
                         tableModel.dataVector.set(sel, prev)
                         tableModel.fireTableDataChanged()
+                        updateSequenceNumbers()
                         table.selectionModel.setSelectionInterval(sel - 1, sel - 1)
                         apply()
                     }
@@ -352,16 +365,18 @@ class VueTemplateConfigurable : Configurable {
                         tableModel.dataVector.set(sel + 1, row)
                         tableModel.dataVector.set(sel, next)
                         tableModel.fireTableDataChanged()
+                        updateSequenceNumbers()
                         table.selectionModel.setSelectionInterval(sel + 1, sel + 1)
                         apply()
                     }
                 }
 
                 reset()
+                updateSequenceNumbers()
             } catch (ex: Exception) {
                 LOG.error("Failed to create VueTemplate settings UI", ex)
                 mainPanel = JPanel(BorderLayout())
-                mainPanel!!.add(JLabel("加载配置页��时发生错误: ${ex.message}"), BorderLayout.CENTER)
+                mainPanel!!.add(JLabel("加载配置页时发生错误: ${ex.message}"), BorderLayout.CENTER)
             }
         }
         return mainPanel
@@ -412,11 +427,11 @@ class VueTemplateConfigurable : Configurable {
         val stored = VueTemplateSettings.getInstance().state.templates
         if (stored.size != tableModel.rowCount) return true
         for (i in 0 until tableModel.rowCount) {
-            val name = tableModel.getValueAt(i, 0) as? String ?: ""
-            val suffix = tableModel.getValueAt(i, 1) as? String ?: ""
-            val type = tableModel.getValueAt(i, 2) as? String ?: ""
-            val content = tableModel.getValueAt(i, 3) as? String ?: ""
-            val enabled = tableModel.getValueAt(i, 4) as? Boolean ?: true
+            val name = tableModel.getValueAt(i, 1) as? String ?: ""
+            val suffix = tableModel.getValueAt(i, 2) as? String ?: ""
+            val type = tableModel.getValueAt(i, 3) as? String ?: ""
+            val content = tableModel.getValueAt(i, 4) as? String ?: ""
+            val enabled = tableModel.getValueAt(i, 5) as? Boolean ?: true
             val t = stored[i]
             if (t.name != name || t.suffix != suffix || t.type != type || t.content != content || t.enabled != enabled) return true
         }
@@ -427,11 +442,11 @@ class VueTemplateConfigurable : Configurable {
         val s = VueTemplateSettings.getInstance().state
         s.templates.clear()
         for (i in 0 until tableModel.rowCount) {
-            val name = tableModel.getValueAt(i, 0) as? String ?: ""
-            val suffix = tableModel.getValueAt(i, 1) as? String ?: ""
-            val type = tableModel.getValueAt(i, 2) as? String ?: ""
-            val content = tableModel.getValueAt(i, 3) as? String ?: ""
-            val enabled = tableModel.getValueAt(i, 4) as? Boolean ?: true
+            val name = tableModel.getValueAt(i, 1) as? String ?: ""
+            val suffix = tableModel.getValueAt(i, 2) as? String ?: ""
+            val type = tableModel.getValueAt(i, 3) as? String ?: ""
+            val content = tableModel.getValueAt(i, 4) as? String ?: ""
+            val enabled = tableModel.getValueAt(i, 5) as? Boolean ?: true
             s.templates.add(VueTemplateSettings.Template(name, suffix, type, content, enabled))
         }
     }
@@ -440,7 +455,8 @@ class VueTemplateConfigurable : Configurable {
         tableModel.setRowCount(0)
         val stored = VueTemplateSettings.getInstance().state.templates
         for (t in stored) {
-            tableModel.addRow(arrayOf<Any>(t.name, t.suffix, t.type, t.content, java.lang.Boolean.valueOf(t.enabled)))
+            // 第一列为序号占位，后续列为 name, suffix, type, content, enabled
+            tableModel.addRow(arrayOf<Any>("", t.name, t.suffix, t.type, t.content, java.lang.Boolean.valueOf(t.enabled)))
         }
     }
 

@@ -119,7 +119,7 @@ class NewVueTemplateAction : AnAction() {
     class CreateTemplateDialog(project: com.intellij.openapi.project.Project) : DialogWrapper(project) {
         // types and templates are loaded from settings
         val typeCombo = ComboBox<String>()
-        val templateList = JBList<String>()
+        val templateList = JBList<VueTemplateSettings.Template>()
         val fileNameField = JTextField(30)
 
         init {
@@ -134,16 +134,34 @@ class NewVueTemplateAction : AnAction() {
             val types = VueTemplateSettings.getInstance().state.templates.map { it.type }.distinct()
             // 如果 types 为空，不添加默认类型，保留为空以提示用户先在设置中添加模板类型
             types.forEach { typeCombo.addItem(it) }
+            // 若 types 非空，默认选中第一个以减少用户操作
+            if (types.isNotEmpty()) {
+                typeCombo.selectedIndex = 0
+            }
             updateTemplateList()
         }
 
         private fun updateTemplateList() {
             val type = (typeCombo.selectedItem as? String) ?: return
             val templates = VueTemplateSettings.getInstance().state.templates.filter { it.type == type && it.enabled }
-            val names = templates.map { it.name }
-            val model = DefaultListModel<String>()
-            names.forEach { model.addElement(it) }
+            val model = DefaultListModel<VueTemplateSettings.Template>()
+            templates.forEach { model.addElement(it) }
             templateList.model = model
+            // 设置自定义渲染器，在显示中添加序号前缀
+            templateList.cellRenderer = ListCellRenderer { list, value, index, isSelected, cellHasFocus ->
+                val lbl = JLabel()
+                if (value != null) {
+                    lbl.text = "${index + 1}. ${value.name}"
+                } else {
+                    lbl.text = ""
+                }
+                if (isSelected) {
+                    lbl.background = list.selectionBackground
+                    lbl.foreground = list.selectionForeground
+                    lbl.isOpaque = true
+                }
+                lbl
+            }
             // 默认选中第一个模板（如果有），以减少用户操作
             if (model.size() > 0) {
                 templateList.setSelectedIndex(0)
@@ -183,8 +201,7 @@ class NewVueTemplateAction : AnAction() {
         }
 
         fun getSelectedTemplate(): VueTemplateSettings.Template? {
-            val sel = templateList.selectedValue ?: return null
-            return VueTemplateSettings.getInstance().state.templates.find { it.name == sel }
+            return templateList.selectedValue
         }
     }
 }

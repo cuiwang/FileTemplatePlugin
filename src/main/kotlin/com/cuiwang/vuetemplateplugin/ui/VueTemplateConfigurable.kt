@@ -18,6 +18,11 @@ import javax.swing.table.DefaultTableCellRenderer
 import com.intellij.ide.BrowserUtil
 import com.intellij.ui.components.labels.LinkLabel
 import com.intellij.ui.JBColor
+import java.io.File
+import com.fasterxml.jackson.module.kotlin.jacksonObjectMapper
+import com.fasterxml.jackson.module.kotlin.readValue
+import javax.swing.JFileChooser
+import javax.swing.filechooser.FileNameExtensionFilter
 
 class VueTemplateConfigurable : Configurable {
     private val LOG = Logger.getInstance(VueTemplateConfigurable::class.java)
@@ -38,7 +43,9 @@ class VueTemplateConfigurable : Configurable {
     private val table = JBTable(tableModel)
 
     init {
-        table.setRowHeight(28)
+        // Increase font size for table and editors
+        table.font = table.font.deriveFont(table.font.size.toFloat() + 2f)
+        table.setRowHeight(30)
         // 优化列宽：模板名称 80，文件后缀 80，模板类型 80，模板内容 200，是否启用 60
         table.columnModel.getColumn(0).preferredWidth = 80  // 模板名称
         table.columnModel.getColumn(1).preferredWidth = 80  // 文件后缀
@@ -58,6 +65,7 @@ class VueTemplateConfigurable : Configurable {
         // 文本字段编辑器（含编辑时占位符模拟）
         val textEditor = object : AbstractCellEditor(), TableCellEditor {
             private val tf = JBTextField()
+            init { tf.font = table.font }
             private var placeholder = ""
             private val placeholderColor = JBColor.GRAY
             private val normalColor = tf.foreground
@@ -122,12 +130,12 @@ class VueTemplateConfigurable : Configurable {
         // 多行编辑器（用于模板内容列），使用 JTextArea，保留换行符
         val multiLineEditor = object : AbstractCellEditor(), TableCellEditor {
             private val ta = JTextArea()
+            init { ta.font = table.font }
             private val scroll = JBScrollPane(ta)
 
             init {
                 ta.lineWrap = true
                 ta.wrapStyleWord = true
-                ta.font = JBTextField().font
                 // 缩小多行编辑器的宽度为 200，避免占用过多横向空间
                 scroll.preferredSize = Dimension(200, 120)
             }
@@ -172,7 +180,7 @@ class VueTemplateConfigurable : Configurable {
             }
         }
 
-        // 多行渲染器，显示带换行的文本
+        // 多行���染器，显示带换行的文本
         val multiLineRenderer = object : DefaultTableCellRenderer() {
             override fun getTableCellRendererComponent(table: JTable?, value: Any?, isSelected: Boolean, hasFocus: Boolean, row: Int, column: Int): java.awt.Component {
                 val ta = JTextArea()
@@ -241,9 +249,9 @@ class VueTemplateConfigurable : Configurable {
                 mainPanel = JPanel(BorderLayout())
 
                 val top = JPanel(BorderLayout())
-                val hint = JLabel("在此配置模版。详情请查看 ")
+                val hint = JLabel("在此配置模版。")
                 val url = "https://github.com/cuiwang/FileTemplatePlugin"
-                val link = LinkLabel<String>("Example docs", null)
+                val link = LinkLabel<String>("查看详细信息", null)
                 link.setListener({ _, _ ->
                     try {
                         BrowserUtil.browse(url)
@@ -252,12 +260,20 @@ class VueTemplateConfigurable : Configurable {
                     }
                 }, null)
                 link.setToolTipText(url)
-                val hintPanel = JPanel()
+                // left side: hint text + link
+                val hintPanel = JPanel(java.awt.FlowLayout(java.awt.FlowLayout.LEFT))
+                val leftBtns = JPanel(java.awt.FlowLayout(java.awt.FlowLayout.LEFT))
+                val importBtn = JButton("导入")
+                val exportBtn = JButton("导出")
+                leftBtns.add(importBtn)
+                leftBtns.add(exportBtn)
                 hintPanel.add(hint)
                 hintPanel.add(link)
+                hintPanel.add(leftBtns)
                 top.add(hintPanel, BorderLayout.NORTH)
 
-                val ops = JPanel()
+                // ops panel (four table operation buttons) left-aligned
+                val ops = JPanel(java.awt.FlowLayout(java.awt.FlowLayout.LEFT))
                 val addBtn = JButton("新增")
                 val deleteBtn = JButton("删除")
                 val upBtn = JButton("上移")
@@ -273,6 +289,34 @@ class VueTemplateConfigurable : Configurable {
                 val scroll = JBScrollPane(table)
                 scroll.preferredSize = Dimension(900, 360)
                 mainPanel!!.add(scroll, BorderLayout.CENTER)
+
+                // 导出
+                exportBtn.addActionListener {
+                    try {
+                        val exported = exportToJson()
+                        if (exported) {
+                            JOptionPane.showMessageDialog(mainPanel, "导出成功", "导出", JOptionPane.INFORMATION_MESSAGE)
+                        }
+                    } catch (ex: Exception) {
+                        LOG.error("Export failed", ex)
+                        JOptionPane.showMessageDialog(mainPanel, "导出失败: ${sanitize(ex.message)}", "错误", JOptionPane.ERROR_MESSAGE)
+                    }
+                }
+
+                // 导入（追加） — 不再显示导入成功弹窗，仅在失败时提示错误
+                importBtn.addActionListener {
+                    try {
+                        val count = importFromJson()
+                        if (count > 0) {
+                            reset()
+                            // intentionally no success dialog to avoid noisy prompts
+                        }
+                        // if count == 0 -> user canceled or no items; do nothing
+                    } catch (ex: Exception) {
+                        LOG.error("Import failed", ex)
+                        JOptionPane.showMessageDialog(mainPanel, "导入失败: ${sanitize(ex.message)}", "错误", JOptionPane.ERROR_MESSAGE)
+                    }
+                }
 
                 addBtn.addActionListener {
                     // 新增一行，模板类型不设默认值，留空交由用户选择
@@ -317,10 +361,51 @@ class VueTemplateConfigurable : Configurable {
             } catch (ex: Exception) {
                 LOG.error("Failed to create VueTemplate settings UI", ex)
                 mainPanel = JPanel(BorderLayout())
-                mainPanel!!.add(JLabel("加载配置页面时发生错误: ${ex.message}"), BorderLayout.CENTER)
+                mainPanel!!.add(JLabel("加载配置页��时发生错误: ${ex.message}"), BorderLayout.CENTER)
             }
         }
         return mainPanel
+    }
+
+    // Export current templates to JSON file (UTF-8). User chooses file via JFileChooser. Overwrites if exists.
+    private val mapper = jacksonObjectMapper()
+
+    private fun exportToJson(): Boolean {
+        val chooser = JFileChooser()
+        chooser.dialogTitle = "导出模板为 JSON"
+        chooser.fileFilter = FileNameExtensionFilter("JSON Files", "json")
+        val res = chooser.showSaveDialog(mainPanel)
+        if (res != JFileChooser.APPROVE_OPTION) return false
+        var file = chooser.selectedFile
+        if (!file.name.endsWith(".json", ignoreCase = true)) {
+            file = File(file.parentFile, file.name + ".json")
+        }
+        val templates = VueTemplateSettings.getInstance().state.templates
+        mapper.writerWithDefaultPrettyPrinter().writeValue(file, templates)
+        return true
+    }
+
+    // Import templates from JSON file (UTF-8) and append to existing templates.
+    private fun importFromJson(): Int {
+        val chooser = JFileChooser()
+        chooser.dialogTitle = "从 JSON 导入模板"
+        chooser.fileFilter = FileNameExtensionFilter("JSON Files", "json")
+        val res = chooser.showOpenDialog(mainPanel)
+        if (res != JFileChooser.APPROVE_OPTION) return 0
+        val file = chooser.selectedFile
+        val imported: List<VueTemplateSettings.Template> = mapper.readValue(file)
+        val state = VueTemplateSettings.getInstance().state
+        // append imported templates
+        for (t in imported) {
+            state.templates.add(t)
+        }
+        return imported.size
+    }
+
+    // sanitize messages shown to users: remove control characters that may cause display issues
+    private fun sanitize(message: String?): String {
+        if (message == null) return "未知错误"
+        return message.replace(Regex("[\\x00-\\x1F]"), " ").trim()
     }
 
     override fun isModified(): Boolean {

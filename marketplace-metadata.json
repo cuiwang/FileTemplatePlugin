@@ -1,0 +1,11 @@
+{
+  "name": "File Template",
+  "vendor": "崔 旺",
+  "description": "在 Project 视图中快速从模版创建文件，支持模版管理与 JSON 导入导出。",
+  "version": "1.0.0",
+  "tags": ["template", "vue", "file", "productivity"],
+  "url": "https://github.com/cuiwang/FileTemplatePlugin",
+  "issueTrackerUrl": "https://github.com/cuiwang/FileTemplatePlugin/issues",
+  "license": "MIT"
+}
+

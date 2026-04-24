@@ -5,10 +5,10 @@
 
     <!-- Public plugin name should be written in Title Case.
          Guidelines: https://plugins.jetbrains.com/docs/marketplace/best-practices-for-listing.html#plugin-name -->
-    <name>File Template-Plugin</name>
+    <name>File Template</name>
 
     <!-- A displayed Vendor name or Organization ID displayed on the Plugins Page. -->
-    <vendor url="https://www.yourcompany.com">YourCompany</vendor>
+    <vendor url="https://github.com/cuiwang">崔 旺</vendor>
 
     <!-- Description of the plugin displayed on the Plugin Page and IDE Plugin Manager.
          Guidelines: https://plugins.jetbrains.com/docs/marketplace/best-practices-for-listing.html#plugin-description -->
@@ -21,9 +21,10 @@
     <depends>com.intellij.modules.platform</depends>
 
     <extensions defaultExtensionNs="com.intellij">
-        <projectActivity implementation="com.cuiwang.vuetemplateplugin.startup.RegisterNewActionStartup" />
-        <postStartupActivity implementation="com.cuiwang.vuetemplateplugin.startup.RegisterNewActionPostStartup" />
-        <applicationConfigurable id="com.cuiwang.FileTemplateConfigurable" implementation="com.cuiwang.vuetemplateplugin.ui.VueTemplateConfigurable" displayName="File Template" />
+        <!-- Register the settings configurable so it appears under Settings -> Other Settings -->
+        <applicationConfigurable id="com.cuiwang.FileTemplateConfigurable"
+                                 instance="com.cuiwang.vuetemplateplugin.ui.VueTemplateConfigurable"
+                                 displayName="File Template"/>
     </extensions>
 
     <!-- Actions: define the New action; placement will be performed at runtime by startup activity -->

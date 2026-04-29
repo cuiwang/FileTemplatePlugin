@@ -29,7 +29,7 @@
 
     <!-- Actions: define the New action; placement will be performed at runtime by startup activity -->
     <actions>
-        <action id="FileTemplate.NewAction" class="com.cuiwang.vuetemplateplugin.action.NewVueTemplateAction" text="File Template" icon="/META-INF/pluginIcon.svg">
+        <action id="FileTemplate.NewAction" class="com.cuiwang.vuetemplateplugin.action.NewVueTemplateAction" text="File Template">
             <add-to-group group-id="NewGroup" anchor="last" />
         </action>
     </actions>

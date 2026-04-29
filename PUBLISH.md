@@ -22,7 +22,7 @@
 
 示例：
 
-- build/distributions/VueTemplate-Plugin-1.3.zip
+- build/distributions/VueTemplate-Plugin-1.4.zip
 
 在 IDE 中本地验证（沙箱运行）
 
@@ -40,7 +40,7 @@
 准备上传到 JetBrains Marketplace（手动上传）
 
 1. 确认 `plugin.xml` 中的 `<id>` 与 Marketplace 上已存在条目的 ID 完全一致（大小写敏感，Marketplace 不允许更改已发布插件的 ID）。
-2. 确认 `build.gradle.kts` 中的 `version` 字段为你要发布的版本号（例如 1.3）。
+2. 确认 `build.gradle.kts` 中的 `version` 字段为你要发布的版本号（例如 1.4）。
 3. 打开 https://plugins.jetbrains.com/，登录开发者账号，进入 “My Plugins” -> 选择对应插件 -> 上传新的分发包（build/distributions/*.zip）。
 4. 填写或更新插件页面内容（可以使用本仓库的 `plugin-page.md` 作为描述），上传 2-3 张清晰截图并选择兼容 IDE 平台。
 5. 提交审核并等待 Marketplace 审核结果。

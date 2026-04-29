@@ -19,8 +19,8 @@ import com.intellij.ide.BrowserUtil
 import com.intellij.ui.components.labels.LinkLabel
 import com.intellij.ui.JBColor
 import java.io.File
-import com.fasterxml.jackson.module.kotlin.jacksonObjectMapper
-import com.fasterxml.jackson.module.kotlin.readValue
+import com.google.gson.Gson
+import com.google.gson.reflect.TypeToken
 import javax.swing.JFileChooser
 import javax.swing.filechooser.FileNameExtensionFilter
 
@@ -383,7 +383,7 @@ class VueTemplateConfigurable : Configurable {
     }
 
     // Export current templates to JSON file (UTF-8). User chooses file via JFileChooser. Overwrites if exists.
-    private val mapper = jacksonObjectMapper()
+    private val gson = Gson()
 
     private fun exportToJson(): Boolean {
         val chooser = JFileChooser()
@@ -396,7 +396,7 @@ class VueTemplateConfigurable : Configurable {
             file = File(file.parentFile, file.name + ".json")
         }
         val templates = VueTemplateSettings.getInstance().state.templates
-        mapper.writerWithDefaultPrettyPrinter().writeValue(file, templates)
+        file.writeText(gson.toJson(templates), Charsets.UTF_8)
         return true
     }
 
@@ -408,8 +408,10 @@ class VueTemplateConfigurable : Configurable {
         val res = chooser.showOpenDialog(mainPanel)
         if (res != JFileChooser.APPROVE_OPTION) return 0
         val file = chooser.selectedFile
-        val imported: List<VueTemplateSettings.Template> = mapper.readValue(file)
-        val state = VueTemplateSettings.getInstance().state
+        val json = file.readText(Charsets.UTF_8)
+        val listType = object : TypeToken<List<VueTemplateSettings.Template>>() {}.type
+        val imported: List<VueTemplateSettings.Template> = gson.fromJson(json, listType)
+         val state = VueTemplateSettings.getInstance().state
         // append imported templates
         for (t in imported) {
             state.templates.add(t)

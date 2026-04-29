@@ -2,6 +2,22 @@
 
 All notable changes to this project will be documented in this file.
 
+## [1.4] - 2026-04-29
+### Added
+- 为 New 菜单和创建对话框提供专用的 16x16 紧凑图标资源，并确保运行时代码使用该资源，修复了菜单中图标显示过大的问题。
+
+### Changed
+- 将默认插入图标的逻辑改为优先使用运行时代码设置并移除 plugin.xml 中的静态 action icon，以避免静态资源覆盖运行时缩放。
+- 小幅调整 UI 文案与布局，使导入/导出与表格操作更直观。
+
+### Fixed
+- 修复右键 -> New 菜单中 `File Template` 项图标显示过大的问题。
+- 修复创建对话框中图标显示和布局异常的问题。
+
+### Notes
+- 本次为兼容性与 UX 修复版，推荐所有用户升级。
+
+
 ## [1.3] - 2026-04-29
 ### Added
 - 在设置页面（Settings -> Other Settings -> File Template）和创建对话框中显示模板序号列（“#”），序号从 1 开始显示，便于用户识别模板顺序。

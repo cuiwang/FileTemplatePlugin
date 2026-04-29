@@ -9,6 +9,7 @@ import com.intellij.openapi.ui.DialogWrapper
 import com.intellij.openapi.ui.Messages
 import com.intellij.openapi.ui.ComboBox
 import com.intellij.openapi.util.IconLoader
+import com.intellij.util.IconUtil
 import com.intellij.openapi.vfs.VfsUtil
 import com.intellij.openapi.vfs.VirtualFile
 import com.intellij.openapi.diagnostic.Logger
@@ -28,7 +29,8 @@ class NewVueTemplateAction : AnAction() {
         // Set presentation text and icon
         templatePresentation.text = "File Template"
         try {
-            templatePresentation.icon = IconLoader.getIcon("/META-INF/pluginIcon.svg", javaClass)
+            val rawIc = IconLoader.getIcon("/META-INF/pluginIcon_16.svg", javaClass)
+            templatePresentation.icon = rawIc
         } catch (_: Exception) {
         }
 
@@ -177,7 +179,7 @@ class NewVueTemplateAction : AnAction() {
             val top = JPanel(FlowLayout(FlowLayout.LEFT))
             val iconLabel = JLabel()
             try {
-                val ic = IconLoader.getIcon("/META-INF/pluginIcon.svg", javaClass)
+                val ic = IconLoader.getIcon("/META-INF/pluginIcon_16.svg", javaClass)
                 iconLabel.icon = ic
                 iconLabel.preferredSize = java.awt.Dimension(16, 16)
             } catch (_: Exception) {

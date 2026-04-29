@@ -1,0 +1,16 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<svg xmlns="http://www.w3.org/2000/svg" width="16" height="16" viewBox="0 0 16 16" role="img" aria-label="File Template Icon 16">
+  <!-- Transparent background, compact file-with-corner icon -->
+  <rect x="0" y="0" width="16" height="16" fill="none"/>
+  <!-- outer rounded square (light blue stroke) -->
+  <rect x="1" y="1" width="14" height="14" rx="3" fill="#2DA6D9"/>
+  <!-- inner white document shape -->
+  <rect x="3" y="2" width="10" height="12" rx="1.2" fill="#FFFFFF"/>
+  <!-- folded corner triangle -->
+  <path d="M10.5 2 L13 4.5 L10.5 4.5 Z" fill="#F3F6F9"/>
+  <!-- small blue code brackets icon centered -->
+  <path d="M5.2 6 L4 7.2 L5.2 8.4" stroke="#2B7FBD" stroke-width="0.9" stroke-linecap="round" stroke-linejoin="round" fill="none"/>
+  <path d="M10.8 6 L12 7.2 L10.8 8.4" stroke="#2B7FBD" stroke-width="0.9" stroke-linecap="round" stroke-linejoin="round" fill="none"/>
+  <path d="M6 8 L10 6.2" stroke="#2B7FBD" stroke-width="0.9" stroke-linecap="round" stroke-linejoin="round" fill="none"/>
+</svg>
+

@@ -5,7 +5,7 @@ plugins {
 }
 
 group = "com.cuiwang"
-version = "1.2"
+version = "1.4"
 
 repositories {
     mavenCentral()
@@ -25,10 +25,8 @@ dependencies {
         // bundledPlugin("com.intellij.java")
     }
 
-    // JSON parsing and Kotlin support
-    implementation("com.fasterxml.jackson.core:jackson-databind:2.15.2")
-    implementation("com.fasterxml.jackson.module:jackson-module-kotlin:2.15.2")
-    implementation("org.jetbrains.kotlin:kotlin-reflect:2.1.0")
+    // JSON parsing: 使用 Gson 以减少打包体积和避免 jackson 的已知警告
+    implementation("com.google.code.gson:gson:2.10.1")
 }
 
 intellijPlatform {
@@ -38,7 +36,7 @@ intellijPlatform {
         }
 
         changeNotes = """
-            Release 1.2 — UI and import/export improvements
+            Release 1.4 — 小版本更新：修复右键菜单与创建对话框中图标尺寸问题，若干 UI 改进与错误修复。
         """.trimIndent()
     }
 }

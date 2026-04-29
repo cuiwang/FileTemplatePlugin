@@ -5,7 +5,7 @@ plugins {
 }
 
 group = "com.cuiwang"
-version = "1.1"
+version = "1.2"
 
 repositories {
     mavenCentral()
@@ -38,7 +38,7 @@ intellijPlatform {
         }
 
         changeNotes = """
-            Initial version
+            Release 1.2 — UI and import/export improvements
         """.trimIndent()
     }
 }

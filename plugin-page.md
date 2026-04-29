@@ -1,5 +1,8 @@
 # File Template — Plugin marketplace page content
 
+**版本**：1.2  
+**发布日期**：2026-04-29
+
 Short description
 
 快速从自定义模板创建文件，提高项目初始化和组件开发效率。
@@ -36,4 +39,3 @@ Support
 Changelog
 
 参见 CHANGELOG.md
-
